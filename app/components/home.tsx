@@ -102,10 +102,10 @@ function Screen() {
   const accessStore = useAccessStore();
   const [password, setPassword] = useState("");
   // 处理密码输入框变化
-  const handlePasswordChange = (e) => {
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPassword(e.target.value);
   };
-  const handlePasswordSubmit = (e) => {
+  const handlePasswordSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (password === process.env.CODE) {
       accessStore.updateCode(password);
