@@ -24,6 +24,8 @@ import {
 import { SideBar } from "./sidebar";
 import { useAppConfig } from "../store/config";
 import { useMaskStore } from "../store/mask";
+import { useAccessStore } from "../store";
+import { showToast } from "./ui-lib";
 
 export function Loading(props: { noLogo?: boolean }) {
   return (
@@ -97,30 +99,66 @@ function Screen() {
   const isHome = location.pathname === Path.Home;
   const isMobileScreen = useMobileScreen();
 
-  return (
-    <div
-      className={
-        styles.container +
-        ` ${
-          config.tightBorder && !isMobileScreen
-            ? styles["tight-container"]
-            : styles.container
-        }`
-      }
-    >
-      <SideBar className={isHome ? styles["sidebar-show"] : ""} />
+  const accessStore = useAccessStore();
+  const [password, setPassword] = useState("");
+  // 处理密码输入框变化
+  const handlePasswordChange = (e) => {
+    setPassword(e.target.value);
+  };
+  const handlePasswordSubmit = (e) => {
+    e.preventDefault();
+    if (password === process.env.CODE) {
+      accessStore.updateCode(password);
+    } else {
+      showToast("密码不正确");
+    }
+    setPassword("");
+  };
 
-      <div className={styles["window-content"]} id={SlotID.AppBody}>
-        <Routes>
-          <Route path={Path.Home} element={<Chat />} />
-          <Route path={Path.NewChat} element={<NewChat />} />
-          <Route path={Path.Masks} element={<MaskPage />} />
-          <Route path={Path.Chat} element={<Chat />} />
-          <Route path={Path.Settings} element={<Settings />} />
-        </Routes>
+  if (accessStore.isAuthorized()) {
+    return (
+      <div
+        className={
+          styles.container +
+          ` ${
+            config.tightBorder && !isMobileScreen
+              ? styles["tight-container"]
+              : styles.container
+          }`
+        }
+      >
+        <SideBar className={isHome ? styles["sidebar-show"] : ""} />
+
+        <div className={styles["window-content"]} id={SlotID.AppBody}>
+          <Routes>
+            <Route path={Path.Home} element={<Chat />} />
+            <Route path={Path.NewChat} element={<NewChat />} />
+            <Route path={Path.Masks} element={<MaskPage />} />
+            <Route path={Path.Chat} element={<Chat />} />
+            <Route path={Path.Settings} element={<Settings />} />
+          </Routes>
+        </div>
       </div>
-    </div>
-  );
+    );
+  } else {
+    return (
+      <div className={styles["login"]}>
+        <p>请输入密码：</p>
+        <form onSubmit={handlePasswordSubmit} className={styles["login-form"]}>
+          <input
+            type="password"
+            value={password}
+            onChange={handlePasswordChange}
+            placeholder="Enter password"
+            className={styles["login-input"]}
+          />
+          <button type="submit" className={styles["login-submit"]}>
+            Submit
+          </button>
+        </form>
+      </div>
+    );
+  }
 }
 
 export function Home() {

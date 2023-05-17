@@ -34,6 +34,9 @@ const nextConfig = {
     return config;
   },
   output: "standalone",
+  env: {
+    CODE: process.env.CODE,
+  },
 };
 
 export default nextConfig;

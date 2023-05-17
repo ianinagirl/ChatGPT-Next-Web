@@ -571,3 +571,23 @@
   height: 100%;
   width: 100%;
 }
+
+.login {
+  text-align: center;
+  .login-form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    .login-input {
+      max-width: 150px;
+    }
+    .login-submit {
+      cursor: pointer;
+      height: 40px;
+      border-radius: 8px;
+      background-color: #1d93ab;
+      width: 150px;
+    }
+  }
+}
