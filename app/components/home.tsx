@@ -66,17 +66,17 @@ export function useSwitchTheme() {
     }
 
     const metaDescriptionDark = document.querySelector(
-      'meta[name="theme-color"][media]',
+      'meta[name="theme-color"][media*="dark"]',
     );
     const metaDescriptionLight = document.querySelector(
-      'meta[name="theme-color"]:not([media])',
+      'meta[name="theme-color"][media*="light"]',
     );
 
     if (config.theme === "auto") {
       metaDescriptionDark?.setAttribute("content", "#151515");
       metaDescriptionLight?.setAttribute("content", "#fafafa");
     } else {
-      const themeColor = getCSSVar("--themeColor");
+      const themeColor = getCSSVar("--theme-color");
       metaDescriptionDark?.setAttribute("content", themeColor);
       metaDescriptionLight?.setAttribute("content", themeColor);
     }
@@ -91,6 +91,14 @@ const useHasHydrated = () => {
   }, []);
 
   return hasHydrated;
+};
+
+const loadAsyncGoogleFont = () => {
+  const linkEl = document.createElement("link");
+  linkEl.rel = "stylesheet";
+  linkEl.href =
+    "/google-fonts/css2?family=Noto+Sans+SC:wght@300;400;700;900&display=swap";
+  document.head.appendChild(linkEl);
 };
 
 function Screen() {
@@ -114,6 +122,10 @@ function Screen() {
     }
     setPassword("");
   };
+
+  useEffect(() => {
+    loadAsyncGoogleFont();
+  }, []);
 
   if (accessStore.isAuthorized()) {
     return (
