@@ -15,6 +15,8 @@ import dynamic from "next/dynamic";
 import { Path, SlotID } from "../constant";
 import { ErrorBoundary } from "./error";
 
+import { getISOLang, getLang } from "../locales";
+
 import {
   HashRouter as Router,
   Routes,
@@ -23,9 +25,10 @@ import {
 } from "react-router-dom";
 import { SideBar } from "./sidebar";
 import { useAppConfig } from "../store/config";
-import { useMaskStore } from "../store/mask";
+import { AuthPage } from "./auth";
+import { getClientConfig } from "../config/client";
+import { api } from "../client/api";
 import { useAccessStore } from "../store";
-import { showToast } from "./ui-lib";
 
 export function Loading(props: { noLogo?: boolean }) {
   return (
@@ -83,6 +86,17 @@ export function useSwitchTheme() {
   }, [config.theme]);
 }
 
+function useHtmlLang() {
+  useEffect(() => {
+    const lang = getISOLang();
+    const htmlLang = document.documentElement.lang;
+
+    if (lang !== htmlLang) {
+      document.documentElement.lang = lang;
+    }
+  }, []);
+}
+
 const useHasHydrated = () => {
   const [hasHydrated, setHasHydrated] = useState<boolean>(false);
 
@@ -95,9 +109,16 @@ const useHasHydrated = () => {
 
 const loadAsyncGoogleFont = () => {
   const linkEl = document.createElement("link");
+  const proxyFontUrl = "/google-fonts";
+  const remoteFontUrl = "https://fonts.googleapis.com";
+  const googleFontUrl =
+    getClientConfig()?.buildMode === "export" ? remoteFontUrl : proxyFontUrl;
   linkEl.rel = "stylesheet";
   linkEl.href =
-    "/google-fonts/css2?family=Noto+Sans+SC:wght@300;400;700;900&display=swap";
+    googleFontUrl +
+    "/css2?family=" +
+    encodeURIComponent("Noto Sans:wght@300;400;700;900") +
+    "&display=swap";
   document.head.appendChild(linkEl);
 };
 
@@ -105,76 +126,68 @@ function Screen() {
   const config = useAppConfig();
   const location = useLocation();
   const isHome = location.pathname === Path.Home;
+  const isAuth = location.pathname === Path.Auth;
   const isMobileScreen = useMobileScreen();
-
-  const accessStore = useAccessStore();
-  const [password, setPassword] = useState("");
-  // 处理密码输入框变化
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPassword(e.target.value);
-  };
-  const handlePasswordSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (password === process.env.CODE) {
-      accessStore.updateCode(password);
-    } else {
-      showToast("密码不正确");
-    }
-    setPassword("");
-  };
+  const shouldTightBorder =
+    getClientConfig()?.isApp || (config.tightBorder && !isMobileScreen);
 
   useEffect(() => {
     loadAsyncGoogleFont();
   }, []);
 
-  if (accessStore.isAuthorized()) {
-    return (
-      <div
-        className={
-          styles.container +
-          ` ${
-            config.tightBorder && !isMobileScreen
-              ? styles["tight-container"]
-              : styles.container
-          }`
-        }
-      >
-        <SideBar className={isHome ? styles["sidebar-show"] : ""} />
+  return (
+    <div
+      className={
+        styles.container +
+        ` ${shouldTightBorder ? styles["tight-container"] : styles.container} ${
+          getLang() === "ar" ? styles["rtl-screen"] : ""
+        }`
+      }
+    >
+      {isAuth ? (
+        <>
+          <AuthPage />
+        </>
+      ) : (
+        <>
+          <SideBar className={isHome ? styles["sidebar-show"] : ""} />
 
-        <div className={styles["window-content"]} id={SlotID.AppBody}>
-          <Routes>
-            <Route path={Path.Home} element={<Chat />} />
-            <Route path={Path.NewChat} element={<NewChat />} />
-            <Route path={Path.Masks} element={<MaskPage />} />
-            <Route path={Path.Chat} element={<Chat />} />
-            <Route path={Path.Settings} element={<Settings />} />
-          </Routes>
-        </div>
-      </div>
-    );
-  } else {
-    return (
-      <div className={styles["login"]}>
-        <p>请输入密码：</p>
-        <form onSubmit={handlePasswordSubmit} className={styles["login-form"]}>
-          <input
-            type="password"
-            value={password}
-            onChange={handlePasswordChange}
-            placeholder="Enter password"
-            className={styles["login-input"]}
-          />
-          <button type="submit" className={styles["login-submit"]}>
-            Submit
-          </button>
-        </form>
-      </div>
-    );
-  }
+          <div className={styles["window-content"]} id={SlotID.AppBody}>
+            <Routes>
+              <Route path={Path.Home} element={<Chat />} />
+              <Route path={Path.NewChat} element={<NewChat />} />
+              <Route path={Path.Masks} element={<MaskPage />} />
+              <Route path={Path.Chat} element={<Chat />} />
+              <Route path={Path.Settings} element={<Settings />} />
+            </Routes>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+export function useLoadData() {
+  const config = useAppConfig();
+
+  useEffect(() => {
+    (async () => {
+      const models = await api.llm.models();
+      config.mergeModels(models);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 }
 
 export function Home() {
   useSwitchTheme();
+  useLoadData();
+  useHtmlLang();
+
+  useEffect(() => {
+    console.log("[Config] got config from build time", getClientConfig());
+    useAccessStore.getState().fetch();
+  }, []);
 
   if (!useHasHydrated()) {
     return <Loading />;
